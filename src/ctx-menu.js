@@ -1,7 +1,3 @@
-import createBodyClickListener from './body-click-listener';
-
-// const EVENT_LIST = ['click', 'contextmenu', 'keydown']
-
 export default {
   name: 'context-menu',
   props: {
@@ -17,32 +13,9 @@ export default {
       ctxTop: 0,
       ctxLeft: 0,
       ctxVisible: false,
-      bodyClickListener: createBodyClickListener(e => {
-        let isOpen = !!this.ctxVisible;
-        let outsideClick = isOpen && !this.$el.contains(e.target);
-
-        if (outsideClick) {
-          if (e.which !== 1) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          } else {
-            this.ctxVisible = false;
-            this.$emit('ctx-cancel', this.locals);
-            e.stopPropagation();
-          }
-        } else {
-          this.ctxVisible = false;
-          this.$emit('ctx-close', this.locals);
-        }
-      }),
     };
   },
   methods: {
-    /*
-     * this function handles some cross-browser compat issues
-     * thanks to https://github.com/callmenick/Custom-Context-Menu
-     */
     setPositionFromEvent(e) {
       e = e || window.event;
 
@@ -76,22 +49,84 @@ export default {
     },
 
     open(e, data) {
-      if (this.ctxVisible) this.ctxVisible = false;
+      if (this.ctxVisible) {
+        this.ctxVisible = false;
+      }
+
       this.ctxVisible = true;
       this.$emit('ctx-open', (this.locals = data || {}));
       this.setPositionFromEvent(e);
       this.$el.setAttribute('tab-index', -1);
-      this.bodyClickListener.start();
+      this.bindEvents();
       return this;
+    },
+
+    bindEvents() {
+      window.addEventListener('click', this._onclick, true);
+      window.addEventListener('keyup', this._onescape, true);
+      window.addEventListener('contextmenu', this._closeIfVisible, true);
+      window.addEventListener('resize', this._closeIfVisible, true);
+      window.addEventListener('scroll', this._closeIfVisible, true);
+    },
+
+    unbindEvents() {
+      window.removeEventListener('click', this._onclick, true);
+      window.removeEventListener('keyup', this._onescape, true);
+      window.removeEventListener('contextmenu', this._closeIfVisible, true);
+      window.removeEventListener('resize', this._closeIfVisible, true);
+      window.removeEventListener('scroll', this._closeIfVisible, true);
+    },
+
+    _onclick(e) {
+      e.preventDefault();
+
+      let isOpen = !!this.ctxVisible;
+      let outsideClick = isOpen && !this.$el.contains(e.target);
+
+      if (outsideClick) {
+        if (e.which !== 1) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        } else {
+          this.ctxVisible = false;
+          this.$emit('ctx-cancel', this.locals);
+          e.stopPropagation();
+        }
+      } else {
+        this.ctxVisible = false;
+        this.$emit('ctx-close', this.locals);
+      }
+    },
+
+    _onescape(e) {
+      if (e.keyCode !== 27) {
+        return;
+      }
+
+      if (!this.ctxVisible) {
+        return;
+      }
+
+      e.stopPropagation();
+      e.preventDefault();
+      this.ctxVisible = false;
+    },
+
+    _closeIfVisible(e) {
+      if (!this.ctxVisible) {
+        return;
+      }
+
+      e.stopPropagation();
+      e.preventDefault();
+      this.ctxVisible = false;
     },
   },
   watch: {
     ctxVisible(newVal, oldVal) {
       if (oldVal === true && newVal === false) {
-        this.bodyClickListener.stop(e => {
-          // console.log('context menu sequence finished', e)
-          // this.locals = {}
-        });
+        this.unbindEvents();
       }
     },
   },
