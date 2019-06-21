@@ -10,6 +10,7 @@
       <ul
         role="menu"
         class="ctx-menu"
+        ref="ul"
         :class="{
           'ctx-menu-right': align==='right',
           'ctx-menu-left': align==='left'
